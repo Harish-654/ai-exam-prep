@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Build output
+client/dist/
+dist/
+
+# Python virtualenv + caches
+python/venv/
+__pycache__/
+*.pyc
+
+# Runtime data
+uploads/*
+!uploads/.gitkeep
+
+# Environment & secrets
+.env
+.env.local
+
+# Logs & OS
+*.log
+.DS_Store
