@@ -1,267 +1,168 @@
 # AI Exam Prep
 
-An AI-powered exam preparation agent that transforms study material into
-a structured, time-aware learning plan.
+Turn a document into a structured, time-aware study plan — then copy a
+ready-to-paste study prompt for each module.
 
-The application takes an image of study material from the user, analyzes
-the content, estimates how it can be studied within the available time,
-and generates a detailed study prompt and learning plan. The material is
-automatically divided into manageable modules and topics to make
-preparation more structured and efficient.
+Upload (or point the CLI at) a PDF, Word doc, PowerPoint, spreadsheet, EPUB,
+or plain text — even a photo/screenshot or a scanned PDF page. The app extracts
+the content (text extraction with **OCR** fallback), asks a **Planner agent** to
+build a study plan, and splits the material into modules with topics, estimated
+hours, and calendar events.
 
 ## Features
 
--   Image-based input for uploading study material
--   AI-powered analysis of uploaded content
--   Time-aware study planning
--   Automatic splitting of content into modules
--   Detailed study prompts for each topic
--   Structured exam preparation workflow
+- **Many input types** — PDF, DOCX, PPTX, XLSX/XLS, EPUB, Markdown, TXT, and
+  images (PNG/JPG/WEBP/BMP/TIFF).
+- **OCR for the hard cases** — scanned PDF pages and image uploads are read
+  with Tesseract, so text without a text layer still works.
+- **Page selection for PDFs** — parse only the pages you care about
+  (e.g. `1-5, 8`); page markers (`[[Page N]]`) keep the agent aware of sources.
+- **Planner agent** — estimates prep hours and builds 3–8 modules with concrete
+  topics, driven by an optional natural-language study prompt.
+- **Per-module study prompts** — one click (or `--copy N` in the terminal)
+  copies a detailed, self-contained prompt you can paste into any LLM.
+- **Google Calendar events** — each module ships a ready-to-add calendar link.
+- **Two ways to run it** — a React + shadcn/ui web UI and a small terminal CLI.
+
+## Tech Stack
+
+- **Backend:** Node.js + Express (SSE live progress), Python for conversion.
+- **Conversion:** [MarkItDown](https://github.com/microsoft/markitdown) +
+  PyMuPDF/PDFium + Tesseract OCR.
+- **Agent:** OpenRouter (`openrouter/free` by default).
+- **Frontend:** React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui.
 
 ## Project Structure
 
-``` text
+```text
 ai-exam-prep/
-├── client/              # Frontend application
-├── server/              # Backend/server
-├── python/              # Python components
-│   └── requirements.txt # Python dependencies
-├── uploads/             # Uploaded files/images
+├── client/                 # React + shadcn/ui frontend
+├── server/
+│   ├── app.js              # Express API + SSE + serves the built client
+│   └── services/           # markitdown (convert), openrouter, calendar
+├── python/
+│   ├── convert.py          # text extraction + page selection + OCR
+│   ├── cli.py              # terminal version
+│   └── requirements.txt
+├── uploads/                # temporary uploads (cleaned up after each run)
 ├── package.json
-├── package-lock.json
-├── .env.example         # Environment variable template
-└── README.md
+├── .env.example
+└── readme.md
 ```
 
 ## Prerequisites
 
-Make sure the following are installed:
+- Node.js 20+ and npm
+- Python 3.10+
+- [Tesseract OCR](https://tesseract-ocr.github.io/) for OCR
+  (`sudo pacman -S tesseract tesseract-data-eng`, `sudo apt install tesseract-ocr`, or `brew install tesseract`)
+- An [OpenRouter](https://openrouter.ai/) API key
 
--   Node.js (LTS recommended)
--   npm
--   Python 3
--   pip
--   Git
+## Setup
 
-Verify the installations:
-
-``` bash
-node --version
-npm --version
-python3 --version
-pip --version
-```
-
-## Installation
-
-### 1. Clone the repository
-
-``` bash
-git clone <repository-url>
+```bash
+git clone https://github.com/Harish-654/ai-exam-prep.git
 cd ai-exam-prep
-```
 
-### 2. Install Node.js dependencies
-
-From the project root:
-
-``` bash
+# Node dependencies
 npm install
-```
 
-### 3. Install Python dependencies
+# Python virtualenv + dependencies (MarkItDown extras, OCR bindings)
+npm run setup:venv
 
-The Python dependencies are listed in `python/requirements.txt`.
-
-``` bash
-pip install -r python/requirements.txt
-```
-
-For a cleaner development setup, using a virtual environment is
-recommended:
-
-``` bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r python/requirements.txt
-```
-
-On Windows:
-
-``` powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r python\requirements.txt
-```
-
-### 4. Configure environment variables
-
-The repository includes an `.env.example` file.
-
-Create your local environment file:
-
-``` bash
+# Environment
 cp .env.example .env
+# then edit .env and set OPENROUTER_API_KEY
 ```
 
-Open `.env` and provide the required configuration values.
+`.env`:
 
-Do not commit `.env` or any API keys and secrets to the repository.
-
-## Running the Application
-
-The client and server are started separately.
-
-### Start the server
-
-From the project root:
-
-``` bash
-npm run dev
+```bash
+OPENROUTER_API_KEY=sk-or-v1-...
+PORT=5000
 ```
 
-### Start the client
+## Run the Web App
 
-Open a second terminal, navigate to the project directory, and run:
-
-``` bash
-npm run dev:client
+```bash
+# Production-style: build the client, then start the server (serves it on :5000)
+npm run build
+npm start
 ```
 
-Both processes should be running simultaneously:
-
-``` bash
-# Terminal 1
-npm run dev
+```bash
+# Development: server on :5000, Vite dev server on :5173 (proxies /api)
+npm run dev          # terminal 1
+npm run dev:client   # terminal 2
 ```
 
-``` bash
-# Terminal 2
-npm run dev:client
+Open http://localhost:5000 (or the Vite URL in dev), upload a document, pick
+pages if it's a PDF, optionally add study guidance, then **Run Pipeline**.
+
+## Run the Terminal Version
+
+A small CLI that converts, plans, and prints each module's study prompt.
+
+```bash
+npm run cli -- notes.pdf
+npm run cli -- notes.pdf --pages 1-5,8
+npm run cli -- notes.pdf --prompt "Focus on depreciation"
+npm run cli -- scan.png                 # image input via OCR
+npm run cli -- notes.pptx --copy 2      # copy module 2's prompt to clipboard
+npm run cli -- notes.pdf --json > plan.json
 ```
 
-After starting the client, open the local URL shown in the terminal.
+Equivalent without npm:
+
+```bash
+python/venv/bin/python python/cli.py notes.pdf --pages 1-5,8
+```
 
 ## How It Works
 
-The application follows this general workflow:
-
-``` text
-Study Material Image
-        |
-        v
-   AI Analysis
-        |
-        v
-  Topic Extraction
-        |
-        v
-  Module Creation
-        |
-        v
-  Time Allocation
-        |
-        v
- Detailed Study Prompt
-        |
-        v
- Structured Study Plan
+```text
+Document / image
+      │
+      ▼
+[1] Extract text  ── PDF pages filtered, scanned pages OCR'd
+      │
+      ▼
+[2] Planner agent ── modules + topics + estimated hours
+      │
+      ▼
+[3] Calendar      ── per-module Google Calendar links
+      │
+      ▼
+Study plan + copyable per-module study prompts
 ```
 
-The uploaded image is analyzed to identify the relevant study material.
-The system then breaks the material into modules and allocates study
-time across them. Finally, it generates detailed prompts and
-instructions to guide the user's preparation.
+Live progress streams to the UI terminal over Server-Sent Events
+(`GET /api/events`).
 
-## Python Dependencies
+## API
 
-Python-specific dependencies are maintained in:
+`POST /api/generate-exam-prep` (multipart/form-data)
 
-``` text
-python/requirements.txt
-```
+| Field      | Required | Description                                   |
+| ---------- | -------- | --------------------------------------------- |
+| `document` | yes      | The file to analyze                           |
+| `pages`    | no       | PDF pages, e.g. `1-5,8` (default: all pages)  |
+| `prompt`   | no       | Study guidance for the Planner agent          |
 
-Install them from the project root with:
-
-``` bash
-pip install -r python/requirements.txt
-```
-
-## Environment Variables
-
-Use `.env.example` as the template for the required environment
-variables:
-
-``` bash
-cp .env.example .env
-```
-
-Configure the values in `.env` before running the application.
-
-Sensitive values such as API keys should never be committed to version
-control.
+Response: `{ success, fileName, markdown, syllabus, calendar }`.
 
 ## Troubleshooting
 
-### Node.js dependencies are missing
-
-Run:
-
-``` bash
-npm install
-```
-
-### Python dependencies are missing
-
-Run:
-
-``` bash
-pip install -r python/requirements.txt
-```
-
-### Environment variable errors
-
-Make sure `.env` exists and contains all required values:
-
-``` bash
-cp .env.example .env
-```
-
-### Server or client does not start
-
-Make sure both development processes are running in separate terminals:
-
-``` bash
-npm run dev
-```
-
-and:
-
-``` bash
-npm run dev:client
-```
-
-If a port is already in use, stop the process occupying the port or
-configure the application to use another available port.
-
-## Development
-
-During development, keep the server and client running in separate
-terminals.
-
-Server:
-
-``` bash
-npm run dev
-```
-
-Client:
-
-``` bash
-npm run dev:client
-```
+- **`MissingDependencyException` for a format** — the MarkItDown extras aren't
+  installed for that file type. Run `npm run setup:venv` (installs
+  `markitdown[pdf,docx,pptx,xlsx,xls]`).
+- **OCR returns nothing** — make sure `tesseract` is on your `PATH`
+  (`tesseract --version`).
+- **`OPENROUTER_API_KEY is not set`** — create `.env` from `.env.example` and
+  add your key.
+- **Port already in use** — stop the previous server (`ss -ltnp | grep 5000`)
+  or set `PORT` in `.env`.
 
 ## License
 
 Add the project's license information here if applicable.
-

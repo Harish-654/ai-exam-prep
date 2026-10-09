@@ -1,2 +1,2 @@
-markitdown[pdf]>=0.1.7
+markitdown[pdf,docx,pptx,xlsx,xls]>=0.1.7
 pytesseract>=0.3.13

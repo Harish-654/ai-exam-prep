@@ -2,12 +2,13 @@
   "name": "ai-exam-prep",
   "version": "1.0.0",
   "private": true,
-  "description": "Agentic AI Exam Prep system — Node.js + Python hybrid pipeline (Planner, Tutor, Critic) with a React + shadcn/ui frontend.",
+  "description": "Agentic AI Exam Prep — Node.js + Python hybrid pipeline (OCR, PDF page selection, Planner agent) with a React + shadcn/ui frontend and a terminal CLI.",
   "scripts": {
     "dev": "node server/app.js",
     "dev:client": "npm run dev --prefix client",
     "build": "npm run build --prefix client",
     "start": "node server/app.js",
+    "cli": "python/venv/bin/python python/cli.py",
     "setup:venv": "python3 -m venv python/venv && python/venv/bin/pip install -r python/requirements.txt"
   },
   "dependencies": {

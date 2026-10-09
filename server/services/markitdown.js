@@ -53,7 +53,11 @@ function convertDocumentToMarkdown(filePath, options = {}) {
 
     child.on('close', (code) => {
       if (code !== 0) {
-        const detail = (stderr || '').trim() || 'converter exited with code ' + code;
+        const detail = (stderr || '')
+          .split('\n')
+          .filter((line) => line.trim() && !line.startsWith(PROGRESS_PREFIX))
+          .join('\n')
+          .trim() || 'converter exited with code ' + code;
         reject(new Error('Document conversion failed: ' + detail));
         return;
       }
