@@ -7,8 +7,10 @@ const cors = require('cors');
 const multer = require('multer');
 
 const { convertDocumentToMarkdown } = require('./services/markitdown');
-const { callOpenRouter, extractJsonContent } = require('./services/openrouter');
+const { callOpenRouter, callOpenRouterWithTools, extractJsonContent } = require('./services/openrouter');
 const { generateCalendarPayload } = require('./services/calendar');
+const { toolDefinitions, runTool } = require('./services/tools');
+const memory = require('./services/memory');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -75,7 +77,10 @@ async function runPlanner(markdown, userPrompt) {
     'You are the Planning Agent in a multi-agent exam preparation system. ' +
     'You analyze an exam preparation document and produce a concrete study plan. ' +
     'You speak the truth derived strictly from the provided source text. ' +
-    'Respond with ONLY a valid JSON object and nothing else.';
+    'You have real tools available: get_past_plans (recall summaries of earlier study ' +
+    'plans so this one stays consistent) and compute_study_schedule (compute real dates ' +
+    'for study sessions). Call them when useful, then respond with ONLY a valid JSON ' +
+    'object and nothing else.';
 
   let userPromptText =
     'Analyze the exam preparation material below and build a study plan.\n\n';
@@ -104,7 +109,13 @@ async function runPlanner(markdown, userPrompt) {
     markdown.slice(0, 30000) +
     '\n---';
 
-  const raw = await callOpenRouter(systemPrompt, userPromptText, true);
+  let raw;
+  try {
+    raw = await callOpenRouterWithTools(systemPrompt, userPromptText, toolDefinitions, runTool);
+  } catch (error) {
+    emitLog('warn', 'Tool calling unavailable (' + error.message + '). Falling back to standard Planner call.');
+    raw = await callOpenRouter(systemPrompt, userPromptText, true);
+  }
   return extractJsonContent(raw);
 }
 
@@ -149,6 +160,14 @@ app.post('/api/generate-exam-prep', upload.single('document'), async (req, res) 
       throw new Error('Planner Agent returned an invalid syllabus.');
     }
     emitLog('success', 'Planner drafted ' + syllabus.modules.length + ' study module(s), ' + syllabus.totalHours + 'h total.');
+
+    memory.remember({
+      fileName: originalName,
+      totalHours: syllabus.totalHours,
+      modules: syllabus.modules.map((module) => ({ title: module.title })),
+      timestamp: new Date().toISOString(),
+    });
+    emitLog('info', 'Plan saved to long-term memory for future sessions.');
 
     emitLog('info', '[3/3] Finalizing calendar payload and response...');
     const calendar = generateCalendarPayload(syllabus);

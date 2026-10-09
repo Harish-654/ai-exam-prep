@@ -22,6 +22,11 @@ hours, and calendar events.
 - **Per-module study prompts** — one click (or `--copy N` in the terminal)
   copies a detailed, self-contained prompt you can paste into any LLM.
 - **Google Calendar events** — each module ships a ready-to-add calendar link.
+- **Real agent tools** — the Planner can call `get_past_plans` (recall earlier
+  plans) and `compute_study_schedule` (compute real session dates) through
+  OpenRouter function-calling, then feed the results back into its plan.
+- **Long-term memory** — every generated plan is stored on the server and
+  surfaced to later runs, so repeat sessions stay consistent.
 - **Two ways to run it** — a React + shadcn/ui web UI and a small terminal CLI.
 
 ## Tech Stack
@@ -39,11 +44,12 @@ ai-exam-prep/
 ├── client/                 # React + shadcn/ui frontend
 ├── server/
 │   ├── app.js              # Express API + SSE + serves the built client
-│   └── services/           # markitdown (convert), openrouter, calendar
+│   └── services/           # markitdown, openrouter (tools), tools, memory, calendar
 ├── python/
 │   ├── convert.py          # text extraction + page selection + OCR
 │   ├── cli.py              # terminal version
 │   └── requirements.txt
+├── memory/                 # long-term plan memory (created at runtime, gitignored)
 ├── uploads/                # temporary uploads (cleaned up after each run)
 ├── package.json
 ├── .env.example
@@ -128,7 +134,8 @@ Document / image
       │
       ▼
 [2] Planner agent ── modules + topics + estimated hours
-      │
+      │              ↳ real tools: get_past_plans, compute_study_schedule
+      │              ↳ results saved to long-term memory
       ▼
 [3] Calendar      ── per-module Google Calendar links
       │
@@ -138,6 +145,21 @@ Study plan + copyable per-module study prompts
 
 Live progress streams to the UI terminal over Server-Sent Events
 (`GET /api/events`).
+
+### Agent tools & memory
+
+The Planner uses genuine OpenRouter function-calling (`tool_choice: auto`).
+Tools are defined in `server/services/tools.js` and actually execute:
+
+- `get_past_plans` — reads real summaries from the memory store.
+- `compute_study_schedule` — returns real ISO date slots for the hours to study.
+
+Tool results are appended back into the conversation and the model continues
+until it produces the final JSON plan. If the configured model rejects tools,
+the server logs a warning and falls back to a normal Planner call, so the
+pipeline never breaks. Completed plans are persisted to
+`memory/sessions.json` (created at runtime, gitignored) and surfaced on the
+next run.
 
 ## API
 
